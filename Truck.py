@@ -1,8 +1,7 @@
 from datetime import datetime, time, timedelta
-from difflib import SequenceMatcher, get_close_matches
 
 from DelPackage import DeliveryStatus
-from helpers import calculateDistance, matchKey, normalize
+from helpers import calculateDistance, matchKey
 
 
 class Truck:

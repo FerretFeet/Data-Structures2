@@ -1,10 +1,8 @@
 import csv
-from datetime import datetime, time, timedelta
-from difflib import SequenceMatcher, get_close_matches
+from datetime import datetime, time
 from DelPackage import DeliveryStatus
 from DelPackage import DelPackage
 from Hashmap import Hashmap
-from Route import beginRoute
 from Truck import Truck
 
 ## Prepare data and objects
@@ -15,8 +13,10 @@ trucks = [Truck() for i in range(numTrucks)]
 #Initialize the hashmap
 hashmap = Hashmap(40)
 totalPackages = 40
+totalPriorityPackages = 14
 #packages loaded is in a list so it can be passed by ref
 packagesLoaded = [0]
+priorityPackagesLoaded =[0]
 #Import data using files from WGU, converted to CSV files
 #Insert into hashmap
 with open('WGUPS_Package_File.csv', newline='') as csvfile:
@@ -67,7 +67,7 @@ with open('WGUPS Distance Table.csv', newline='') as csvfile:
 #Assign packages to truck
 #Due to complex restrictions, certain packages are loaded to trucks
 #Through hard-coding
-def loadTrucks(trucks, numTrucks, hashmap, counter):
+def loadTrucks(trucks, numTrucks, hashmap, counter, priorityCounter):
 
     for i, val in enumerate(hashmap.data):
         key = val[0]
@@ -113,8 +113,13 @@ def loadTrucks(trucks, numTrucks, hashmap, counter):
             value.status = DeliveryStatus.EN_ROUTE
             i += 1
             counter[0] += 1
+            priorityCounter[0]
+
             continue
 
+
+        if totalPriorityPackages <= priorityCounter[0]:
+            continue
 
         # Packages which must be on a certain truck or delivered
         # With other certain packages will be hardcoded here
@@ -153,7 +158,7 @@ def loadTrucks(trucks, numTrucks, hashmap, counter):
             break
 
 
-        
+
 
 def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
     i=0
@@ -166,7 +171,7 @@ def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
         
 def beginDay():
     availableTrucks = trucks.copy()
-    loadTrucks(trucks, numTrucks, hashmap, packagesLoaded)
+    loadTrucks(trucks, numTrucks, hashmap, packagesLoaded, priorityPackagesLoaded)
 
     for truck in availableTrucks:
         print(truck.standardQueue)
@@ -181,7 +186,7 @@ def beginDay():
     while totalPackages > packagesLoaded[0]:
         print("While loop executing")
         availableTruck = min(trucks, key=lambda t: t.clock)
-        loadTrucks([availableTruck], 1, hashmap, packagesLoaded)
+        loadTrucks([availableTruck], 1, hashmap, packagesLoaded, priorityPackagesLoaded)
         print(f"Truck dispatched at {truck.clock}")
         availableTruck.beginRoute(distanceMatrix, hashmap)
         

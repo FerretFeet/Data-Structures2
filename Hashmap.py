@@ -1,6 +1,3 @@
-from enum import Enum
-
-
 class Hashmap:
     def __init__(self, length):
         self.data = [[None] for el in range(length)];
