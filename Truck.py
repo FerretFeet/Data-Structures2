@@ -50,7 +50,6 @@ class Truck:
 
     def assignNextStop(self, distanceMatrix, hashmap):
                 #Find nearest location/package
-            keys = distanceMatrix.keys()
             for id, address in self.unvisited:
                 #find fuzzy match
                 #trim the beginning of the key for better address matching
@@ -61,6 +60,7 @@ class Truck:
                     self.nearestDistance = distance
                     self.nextPackageID = id
                     self.nearestLocation = temploc
+                    return id
 
 
 
@@ -69,7 +69,7 @@ class Truck:
         # print('traveling to stop')
         self.mileage += self.nearestDistance
         self.location = self.nearestLocation
-        self.clock += timedelta(minutes=int(self.nearestDistance/self.mph*100))
+        self.clock += timedelta(minutes=int(self.nearestDistance/self.mph*60))
         self.visited.append(self.nearestLocation)
         #Search through list to find match, then remove from unvisited locations
         for subarr in self.unvisited:

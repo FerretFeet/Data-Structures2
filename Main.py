@@ -4,6 +4,7 @@ from DelPackage import DeliveryStatus
 from DelPackage import DelPackage
 from Hashmap import Hashmap
 from Truck import Truck
+from helpers import calculateDistance, matchKey
 
 ## Prepare data and objects
 #Initialize trucks
@@ -63,16 +64,38 @@ with open('WGUPS Distance Table.csv', newline='') as csvfile:
             i += 1
 
 
+def preSort():
+    mepo = Truck(totalPackages) #Will be using truck methods to order
+    mepo.location = matchKey(mepo.location, distanceMatrix)
+    plist = []
+    while len(plist) < totalPackages:
+        for key, val in hashmap.data:
+            if val.status == DeliveryStatus.DELIVERED or val.status == DeliveryStatus.EN_ROUTE:
+                continue
+            #Order before loading
+            #Find closest Priority package
+            #Then find standard packages
+            temploc = matchKey(val.address, distanceMatrix)
+            distance = calculateDistance(mepo.location, temploc, distanceMatrix)
+            if distance < mepo.nearestDistance:
+                mepo.nearestDistance = distance
+                mepo.nextPackageID = val.id
+        plist.append(mepo.nextPackageID)
+        print(f"{len(plist)} -< plist")
+    return plist
+
 
 #Assign packages to truck
 #Due to complex restrictions, certain packages are loaded to trucks
 #Through hard-coding
-def loadTrucks(trucks, numTrucks, hashmap, counter, priorityCounter):
+def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix, counter, priorityCounter):
 
-    for i, val in enumerate(hashmap.data):
+    preSort()
+
+    i = 0
+    for idx, val in enumerate(hashmap.data):
         key = val[0]
         value = val[1]
-
 
     #Prevent delayed packages to be assigned until they are available
         delayedPackages = [[6, datetime.combine(datetime.today(), time(9, 5, 0))],[9, datetime.combine(datetime.today(), time(10, 20, 0))],[25, datetime.combine(datetime.today(), time(9, 5, 0))],[28, datetime.combine(datetime.today(), time(9, 5, 0))],[32, datetime.combine(datetime.today(), time(9, 5, 0))]]
@@ -171,12 +194,12 @@ def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
         
 def beginDay():
     availableTrucks = trucks.copy()
-    loadTrucks(trucks, numTrucks, hashmap, packagesLoaded, priorityPackagesLoaded)
+    loadTrucks(trucks, numTrucks, hashmap, distanceMatrix, packagesLoaded, priorityPackagesLoaded)
 
     for truck in availableTrucks:
         print(truck.standardQueue)
         print(truck.priorityQueue)
-        truck.beginRoute(distanceMatrix, hashmap)
+        print(f"truck begin route at {truck.clock}")
         truck.beginRoute(distanceMatrix, hashmap)
         print(hashmap.lookup(9)[1].status)
 
@@ -186,7 +209,7 @@ def beginDay():
     while totalPackages > packagesLoaded[0]:
         print("While loop executing")
         availableTruck = min(trucks, key=lambda t: t.clock)
-        loadTrucks([availableTruck], 1, hashmap, packagesLoaded, priorityPackagesLoaded)
+        loadTrucks([availableTruck], 1, hashmap, distanceMatrix, packagesLoaded, priorityPackagesLoaded)
         print(f"Truck dispatched at {truck.clock}")
         availableTruck.beginRoute(distanceMatrix, hashmap)
         
