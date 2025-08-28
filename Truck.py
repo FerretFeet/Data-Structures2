@@ -1,7 +1,8 @@
 from datetime import datetime, time, timedelta
-from difflib import get_close_matches
+from difflib import SequenceMatcher, get_close_matches
 
 from DelPackage import DeliveryStatus
+from helpers import calculateDistance, matchKey, normalize
 
 
 class Truck:
@@ -16,6 +17,7 @@ class Truck:
         self.visited = []
         self.unvisited = []
         self.mph = 18
+        self.returnHome = False
 
         self.nearestDistance = 1000
         self.nearestLocation = None
@@ -38,21 +40,99 @@ class Truck:
     def assignPriorityPackage(self, delpackageid):
         self._assignPackage(delpackageid, self.priorityQueue)
     
-    def chooseNextStop(self, distanceMatrix, hashmap):
-        #Find nearest location
-        keys = distanceMatrix.keys()
 
-        for id, address in self.unvisited:
-            #find fuzzy match
-            temploc = get_close_matches(address, keys, n=1)
-            distance = distanceMatrix[self.location][temploc]
-            if distance < self.nearestDistance & ((len(self.priorityQueue) == 0) or (hashmap.lookup(id).deadline != "EOD")):
-                self.nearestDistance = distance
-                self.nextPackage = id
-                self.nextLocation = temploc
+    def populateUnvisited(self, hashmap):
+        self.unvisited=[]
+        for package in self.standardQueue + self.priorityQueue:
+            self.unvisited.append([hashmap.lookup(package)[1].id, hashmap.lookup(package)[1].address]) 
 
 
-    def travelToNextStop(self):
+
+
+    def assignNextStop(self, distanceMatrix, hashmap):
+                #Find nearest location/package
+            keys = distanceMatrix.keys()
+            for id, address in self.unvisited:
+                #find fuzzy match
+                #trim the beginning of the key for better address matching
+                temploc = matchKey(address, distanceMatrix)
+                distance = calculateDistance(self.location, temploc, distanceMatrix)
+                #Ensure standard packages arent delivered before priority
+                if distance < self.nearestDistance and ((len(self.priorityQueue) == 0) or (hashmap.lookup(id)[1].deadline != "EOD")):
+                    self.nearestDistance = distance
+                    self.nextPackageID = id
+                    self.nearestLocation = temploc
+
+
+
+    def travelToStop(self): 
+            #Deliver the package
+        # print('traveling to stop')
         self.mileage += self.nearestDistance
-        self.clock += timedelta(minutes=int(self.nearestDistance/self.mph))
+        self.location = self.nearestLocation
+        self.clock += timedelta(minutes=int(self.nearestDistance/self.mph*100))
+        self.visited.append(self.nearestLocation)
+        #Search through list to find match, then remove from unvisited locations
+        for subarr in self.unvisited:
+            if int(subarr[0]) == int(self.nextPackageID):
+                self.unvisited.remove(subarr)
+        
+
+
+    def setHomeNext(self):
+            self.unvisited.append([0, "4001 South 700 East, Salt Lake City, UT"])
+            self.returnHome = True
+
+
+    def deliverPackage(self, hashmap):
+        hashmap.lookup(self.nextPackageID)[1].status = DeliveryStatus.DELIVERED
+        hashmap.lookup(self.nextPackageID)[1].timeDelivered = self.clock
+        # print(f"self has updated packageID {self.nextPackageID} to status {hashmap.lookup(self.nextPackageID)[1].status} at time {self.clock} with mileage {self.mileage}")
+        if hashmap.lookup(self.nextPackageID)[1].deadline != "EOD" and self.nextPackageID != 0: # =0 is go home
+            deadline = datetime.strptime(hashmap.lookup(self.nextPackageID)[1].deadline, "%I:%M %p").time()
+            deadline = datetime.combine(datetime.today(), deadline)
+            if self.clock > deadline:
+                print(f"{self.nextPackageID} was delivered late at {self.clock}")
+                raise Exception("Package missed delivery deadline")
+            for id in self.standardQueue + self.priorityQueue:
+                if int(id) == int(self.nextPackageID):
+                    try: 
+                        self.priorityQueue.remove(id)
+                        print("Package removed from priorityQueue")
+                        print(len(self.priorityQueue))
+                        break
+                    except:
+                        self.standardQueue.remove(id)
+                        break
+
+
+    # def prepareForNextDelivery():
+
+
+
+#Begin routing
+    def beginRoute(self, distanceMatrix, hashmap, endTime=datetime.combine(datetime.today(), time(23, 59, 59))):
+        self.location = matchKey(self.location, distanceMatrix)
+        self.populateUnvisited(hashmap)
+
+        #Start routing algorithm
+        while len(self.unvisited) > 0:
+            self.assignNextStop(distanceMatrix, hashmap)
+
+            if self.clock + timedelta(minutes=int(self.nearestDistance/self.mph*100)) < endTime:
+                self.travelToStop()
+            else:
+                break
+
+            self.deliverPackage(hashmap)
+
+            #Remove package from queue. Mark as delivered
+
+            #Search for and remove from queues
+
+            #Return to Hub after all packages delivered.
+            if len(self.unvisited) == 0 and self.returnHome == False:
+                self.setHomeNext()
+            #Reset self.nearestDistance
+            self.nearestDistance = 1000
 

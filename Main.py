@@ -93,24 +93,27 @@ def loadTrucks(trucks, numTrucks, hashmap, counter):
 
         #Take care of early deadlines
         if value.deadline != "EOD":
-            try:
-                if i % numTrucks == 0 and trucks[0].status == 0:
-                    trucks[0].assignPriorityPackage(key)
-                elif i % numTrucks == 1 and trucks[1].status == 0:
-                    trucks[1].assignPriorityPackage(key)
-                elif i % numTrucks == 2 and trucks[2].status == 0:
-                    trucks[2].assignPriorityPackage(key)
-            except ValueError:
-                #As implemented, if Truck 3 is full, all trucks will be full.
-                #So only truck 3 check is necessary
-                if trucks[numTrucks-1].curcapacity >= trucks[numTrucks-1].maxcapacity and trucks[numTrucks -1].status == 0:
-                    break #if truck 3 is full, all trucks are full
+            # try:
+            if i % numTrucks == 0 and trucks[0].status == 0 and len(trucks[0].priorityQueue) < 5:
+                trucks[0].assignPriorityPackage(key)
+            elif i % numTrucks == 1 and trucks[1].status == 0 and len(trucks[1].priorityQueue) < 5:
+                trucks[1].assignPriorityPackage(key)
+            elif i % numTrucks == 2 and trucks[2].status == 0 and len(trucks[2].priorityQueue) < 5:
                 trucks[2].assignPriorityPackage(key)
-            finally:
-                value.status = DeliveryStatus.EN_ROUTE
-                i += 1
-                counter[0] += 1
-                continue
+            else:
+                print("this is the issue")
+                break
+        # except ValueError:
+        #     #As implemented, if Truck 3 is full, all trucks will be full.
+        #     #So only truck 3 check is necessary
+        #     if trucks[numTrucks-1].curcapacity >= trucks[numTrucks-1].maxcapacity and trucks[numTrucks -1].status == 0:
+        #         break #if truck 3 is full, all trucks are full
+        #     trucks[2].assignPriorityPackage(key)
+        # finally:
+            value.status = DeliveryStatus.EN_ROUTE
+            i += 1
+            counter[0] += 1
+            continue
 
 
         # Packages which must be on a certain truck or delivered
@@ -136,7 +139,7 @@ def loadTrucks(trucks, numTrucks, hashmap, counter):
         #after initial priority route is sent
         for truck in trucks:
 
-            if truck.curcapacity >= truck.maxcapacity and truck.status == 0 or truck.clock == datetime.combine(datetime.today(), time(8, 0, 0)): #available
+            if truck.curcapacity >= truck.maxcapacity and truck.status == 0 or truck.clock == datetime.combine(datetime.today(), time(8, 0, 0)): 
                 continue
             truck.assignPackage(value.id)
             counter[0] += 1
@@ -148,6 +151,9 @@ def loadTrucks(trucks, numTrucks, hashmap, counter):
 
         if i == totalPackages:
             break
+
+
+        
 
 def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
     i=0
@@ -165,8 +171,8 @@ def beginDay():
     for truck in availableTrucks:
         print(truck.standardQueue)
         print(truck.priorityQueue)
-        beginRoute(trucks[0], distanceMatrix, hashmap)
-        beginRoute(trucks[1], distanceMatrix, hashmap)
+        truck.beginRoute(distanceMatrix, hashmap)
+        truck.beginRoute(distanceMatrix, hashmap)
         print(hashmap.lookup(9)[1].status)
 
         print(f"####################TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
@@ -177,7 +183,7 @@ def beginDay():
         availableTruck = min(trucks, key=lambda t: t.clock)
         loadTrucks([availableTruck], 1, hashmap, packagesLoaded)
         print(f"Truck dispatched at {truck.clock}")
-        beginRoute(availableTruck, distanceMatrix, hashmap)
+        availableTruck.beginRoute(distanceMatrix, hashmap)
         
     print("ALL PACKAGES LOADED")
 
