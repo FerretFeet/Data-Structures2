@@ -6,20 +6,32 @@ from Hashmap import Hashmap
 from Truck import Truck
 from helpers import calculateDistance, matchKey
 
-## Prepare data and objects
-#Initialize trucks
-numTrucks = 3
-trucks = [Truck() for i in range(numTrucks)]
+##Config Vars
+NUM_TRUCKS = 3
+TOTAL_PACKAGES = 40
+LOADED_PACKAGES = [0]
+# TOTAL_PRIORITY_PACKAGES = 14
 
-#Initialize the hashmap
-hashmap = Hashmap(40)
-totalPackages = 40
-totalPriorityPackages = 14
-#packages loaded is in a list so it can be passed by ref
-packagesLoaded = [0]
-priorityPackagesLoaded =[0]
-#Import data using files from WGU, converted to CSV files
-#Insert into hashmap
+##Ppackage restrictions
+REQUIRE_TRUCK_2 = [3, 18, 36, 38]
+GROUPED_PACKAGES = [14, 15, 16, 19, 20]
+DELAYED_PACKAGES = [
+    [6, datetime.combine(datetime.today(), time(9, 5))],
+    [9, datetime.combine(datetime.today(), time(10, 20))],
+    [25, datetime.combine(datetime.today(), time(9, 5))],
+    [28, datetime.combine(datetime.today(), time(9, 5))],
+    [32, datetime.combine(datetime.today(), time(9, 5))]
+]
+
+##Initialize objects
+trucks = [Truck() for i in range(NUM_TRUCKS)]
+hashmap = Hashmap(TOTAL_PACKAGES)
+distanceMatrix = {}
+
+
+##Load Data
+
+#Hashmap
 with open('WGUPS_Package_File.csv', newline='') as csvfile:
     packageList = csv.DictReader(csvfile)
     for row in packageList:
@@ -41,143 +53,135 @@ with open('WGUPS_Package_File.csv', newline='') as csvfile:
     
         ))
 
-#Create the Distance Matrix using files from WGU
-distanceMatrix = {}
+#Distance Matrix
 with open('WGUPS Distance Table.csv', newline='') as csvfile:
     reader = csv.reader(csvfile)
-    #First row is locations
     needHeaders = True;
-    for row in reader:
-        if needHeaders == True:
+    for idx ,row in enumerate(reader):
+        if idx == 0:
             headers = row[2:] #Skip first two columns
-            needHeaders = False
             continue
 
         row_location = row[0]
         distanceMatrix[row_location] = {}
-        i = 0
-        for value in row[2:]: #skip first to columns
-            if not value: #Value is empty, skip
-                continue;
-            
-            distanceMatrix[row_location][headers[i]] = float(value)
-            i += 1
 
+        for i, value in enumerate(row[2:]): #skip first two columns
+            if value:
+                distanceMatrix[row_location][headers[i]] = float(value)
+
+
+##helper functions
 
 def preSort():
-    mepo = Truck(totalPackages) #Will be using truck methods to order
+    mepo = Truck(TOTAL_PACKAGES) #Will be using truck methods to order
     mepo.location = matchKey(mepo.location, distanceMatrix)
     plist = []
-    while len(plist) < totalPackages:
+    while len(plist) < TOTAL_PACKAGES:
+        mepo.nearestDistance = 1000
         for key, val in hashmap.data:
-            if val.status == DeliveryStatus.DELIVERED or val.status == DeliveryStatus.EN_ROUTE:
+            if val.status in (DeliveryStatus.DELIVERED, DeliveryStatus.EN_ROUTE, DeliveryStatus.NOT_PREPARED):
                 continue
-            #Order before loading
-            #Find closest Priority package
-            #Then find standard packages
-            temploc = matchKey(val.address, distanceMatrix)
-            distance = calculateDistance(mepo.location, temploc, distanceMatrix)
+            if val.sortedFlag == True:
+                continue
+
+            dest = matchKey(val.address, distanceMatrix)
+            distance = calculateDistance(mepo.location, dest, distanceMatrix)
+
             if distance < mepo.nearestDistance:
                 mepo.nearestDistance = distance
                 mepo.nextPackageID = val.id
+
         plist.append(mepo.nextPackageID)
-        print(f"{len(plist)} -< plist")
+        hashmap.lookup(len(plist)-1)[1].sortedFlag = True
     return plist
 
 
-#Assign packages to truck
+def updateDelayedPackages(truck):
+        #Prevent delayed packages to be assigned until they are available
+    #PackageID and time
+        for package, time in DELAYED_PACKAGES:
+            if (time <= truck.clock):
+                #Mark as AT_HUB then proceed to execute function
+                hashmap.lookup(package)[1].status = DeliveryStatus.AT_HUB
+                if package == 9:
+                    #Update Address
+                    hashmap.lookup(package)[1].address = "410 S. State St"
+                    hashmap.lookup(package)[1].zip = "84111"
+
+
+def assignToTruck(truck, packageID):
+    if truck.curcapacity < truck.maxcapacity:
+        if hashmap.lookup(packageID)[1].deadline != "EOD":
+            truck.assignPackage(packageID, True)
+        else:
+            truck.assignPackage(packageID)
+        LOADED_PACKAGES[0] += 1
+    else:
+        print("Truck full")
+
+
+
 #Due to complex restrictions, certain packages are loaded to trucks
 #Through hard-coding
-def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix, counter, priorityCounter):
+def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
-    preSort()
-
+    plist = preSort()
+    #used to evenly distribute priority packages
     i = 0
-    for idx, val in enumerate(hashmap.data):
-        key = val[0]
-        value = val[1]
 
-    #Prevent delayed packages to be assigned until they are available
-        delayedPackages = [[6, datetime.combine(datetime.today(), time(9, 5, 0))],[9, datetime.combine(datetime.today(), time(10, 20, 0))],[25, datetime.combine(datetime.today(), time(9, 5, 0))],[28, datetime.combine(datetime.today(), time(9, 5, 0))],[32, datetime.combine(datetime.today(), time(9, 5, 0))]]
-        if value.status == DeliveryStatus.NOT_PREPARED:
-            for package in delayedPackages:
+    for key, pkg in hashmap.data:
+
+        if pkg.status == DeliveryStatus.NOT_PREPARED:
+        #Only trucks[0] checked b/c after initial function call
+        #trucks length will be 1
+            updateDelayedPackages(trucks[0])
                 
-                if (package[1] <= trucks[0].clock):
-                    hashmap.lookup(package[0])[1].status = DeliveryStatus.AT_HUB
-                    if package[0] == 9:
-                        value.address = "410 S. State St"
-                        value.zip = "84111"
-                        print(hashmap.lookup(9)[1].address)
-
-        #If not as hub, skip
-        if value.status != DeliveryStatus.AT_HUB:
+        if pkg.status != DeliveryStatus.AT_HUB:
             continue
 
+        #Hardcoded Restrictions:
 
-        #Take care of early deadlines
-        if value.deadline != "EOD":
-            # try:
-            if i % numTrucks == 0 and trucks[0].status == 0 and len(trucks[0].priorityQueue) < 5:
-                trucks[0].assignPriorityPackage(key)
-            elif i % numTrucks == 1 and trucks[1].status == 0 and len(trucks[1].priorityQueue) < 5:
-                trucks[1].assignPriorityPackage(key)
-            elif i % numTrucks == 2 and trucks[2].status == 0 and len(trucks[2].priorityQueue) < 5:
-                trucks[2].assignPriorityPackage(key)
-            else:
-                print("this is the issue")
-                break
-        # except ValueError:
-        #     #As implemented, if Truck 3 is full, all trucks will be full.
-        #     #So only truck 3 check is necessary
-        #     if trucks[numTrucks-1].curcapacity >= trucks[numTrucks-1].maxcapacity and trucks[numTrucks -1].status == 0:
-        #         break #if truck 3 is full, all trucks are full
-        #     trucks[2].assignPriorityPackage(key)
-        # finally:
-            value.status = DeliveryStatus.EN_ROUTE
-            i += 1
-            counter[0] += 1
-            priorityCounter[0]
-
-            continue
-
-
-        if totalPriorityPackages <= priorityCounter[0]:
-            continue
-
-        # Packages which must be on a certain truck or delivered
-        # With other certain packages will be hardcoded here
-        #PackageIDs 3, 18, 36, and 38 must be on truck 2
-        requireTruck2 = [3, 18, 36, 38]
-        if value.id in requireTruck2:
-            trucks[1].assignPackage(value.id)
-            value.status = DeliveryStatus.EN_ROUTE
-            counter[0] += 1
+        if pkg.id in REQUIRE_TRUCK_2:
+            assignToTruck(trucks[1], pkg.id)
+            pkg.status = DeliveryStatus.EN_ROUTE
             continue
         
-        #Packages 14,15,16,19, and 20 must be delivered together
-        groupedTogether = [14, 15, 16, 19, 20]
-        if value.id in groupedTogether:
-            trucks[0].assignPackage(value.id)
-            value.status = DeliveryStatus.EN_ROUTE
-            counter[0] += 1
+        if pkg.id in GROUPED_PACKAGES:
+            assignToTruck(trucks[0], pkg.id)
+            pkg.status = DeliveryStatus.EN_ROUTE
             continue
 
-        #if a package is not caught by any previous checks
-        #simply assign it to the first available truck
-        #after initial priority route is sent
+        #Take care of early deadlines
+        if pkg.deadline != "EOD":
+            flag = False
+
+            if i % numTrucks == 0 and trucks[0].status == 0 and len(trucks[0].priorityQueue) < 5:
+                assignToTruck(trucks[0], pkg.id)
+                flag = True
+            elif i % numTrucks == 1 and trucks[1].status == 0 and len(trucks[1].priorityQueue) < 5:
+                assignToTruck(trucks[1], pkg.id)
+                flag = True
+            elif i % numTrucks == 2 and trucks[2].status == 0 and len(trucks[2].priorityQueue) < 5:
+                assignToTruck(trucks[2], pkg.id)
+                flag = True
+            #If assigned, continue
+            if flag == True:
+                pkg.status = DeliveryStatus.EN_ROUTE
+                i += 1
+                continue
+
+        # All Other Packages go here
         for truck in trucks:
 
-            if truck.curcapacity >= truck.maxcapacity and truck.status == 0 or truck.clock == datetime.combine(datetime.today(), time(8, 0, 0)): 
-                continue
-            truck.assignPackage(value.id)
-            counter[0] += 1
-            break
+            if truck.curcapacity + 1 < truck.maxcapacity and truck.status == 0: 
+                assignToTruck(truck, pkg.id)
+                break
         
         #if final truck is full, no more package to assign
         if trucks[numTrucks-1].curcapacity == trucks[numTrucks-1].maxcapacity:
             break
 
-        if i == totalPackages:
+        if i == TOTAL_PACKAGES:
             break
 
 
@@ -194,24 +198,26 @@ def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
         
 def beginDay():
     availableTrucks = trucks.copy()
-    loadTrucks(trucks, numTrucks, hashmap, distanceMatrix, packagesLoaded, priorityPackagesLoaded)
-
+    loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
+    testFlag = True
     for truck in availableTrucks:
-        print(truck.standardQueue)
-        print(truck.priorityQueue)
         print(f"truck begin route at {truck.clock}")
-        truck.beginRoute(distanceMatrix, hashmap)
+
         print(hashmap.lookup(9)[1].status)
+        truck.beginRoute(distanceMatrix, hashmap)
 
         print(f"####################TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
     #all trucks loaded once, now reload based off first return
 
-    while totalPackages > packagesLoaded[0]:
+    while LOADED_PACKAGES[0] < TOTAL_PACKAGES:
         print("While loop executing")
         availableTruck = min(trucks, key=lambda t: t.clock)
-        loadTrucks([availableTruck], 1, hashmap, distanceMatrix, packagesLoaded, priorityPackagesLoaded)
+        if availableTruck.curcapacity == 0:
+            return
+        loadTrucks([availableTruck], 1, hashmap, distanceMatrix)
         print(f"Truck dispatched at {truck.clock}")
-        availableTruck.beginRoute(distanceMatrix, hashmap)
+        availableTruck.beginRoute(distanceMatrix, hashmap, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
+        testFlag = False
         
     print("ALL PACKAGES LOADED")
 

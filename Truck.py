@@ -32,8 +32,11 @@ class Truck:
         else:
             raise ValueError("This truck cannot hold any more packages")
 
-    def assignPackage(self, delpackageid):
-        self._assignPackage(delpackageid, self.standardQueue)
+    def assignPackage(self, delpackageid, isPriority=False):
+        if isPriority:
+            self._assignPackage(delpackageid, self.priorityQueue)
+        else:
+            self._assignPackage(delpackageid, self.standardQueue)
 
     
     def assignPriorityPackage(self, delpackageid):
@@ -118,7 +121,7 @@ class Truck:
         while len(self.unvisited) > 0:
             self.assignNextStop(distanceMatrix, hashmap)
 
-            if self.clock + timedelta(minutes=int(self.nearestDistance/self.mph*100)) < endTime:
+            if self.clock + timedelta(minutes=int(self.nearestDistance/self.mph*60)) < endTime:
                 self.travelToStop()
             else:
                 break

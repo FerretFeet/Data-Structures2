@@ -19,3 +19,4 @@ class DelPackage:
         self.deadline = deadline;
         self.status = status;
         self.timeDelivered = timeDelivered;
+        self.sortedFlag = False
