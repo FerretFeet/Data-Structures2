@@ -100,9 +100,11 @@ def updateDelayedPackages(truck):
         #Prevent delayed packages to be assigned until they are available
     #PackageID and time
         for package, time in DELAYED_PACKAGES:
+            if hashmap.lookup(package)[1].status != DeliveryStatus.NOT_PREPARED:
+                continue
             if (time <= truck.clock):
                 #Mark as AT_HUB then proceed to execute function
-                hashmap.lookup(package)[1].status = DeliveryStatus.AT_HUB
+                hashmap.lookup(package)[1].setStatus(DeliveryStatus.AT_HUB)
                 if package == 9:
                     #Update Address
                     hashmap.lookup(package)[1].address = "410 S. State St"
@@ -143,12 +145,12 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
         if pkg.id in REQUIRE_TRUCK_2:
             assignToTruck(trucks[1], pkg.id)
-            pkg.status = DeliveryStatus.EN_ROUTE
+            pkg.setStatus(DeliveryStatus.EN_ROUTE)
             continue
         
         if pkg.id in GROUPED_PACKAGES:
             assignToTruck(trucks[0], pkg.id)
-            pkg.status = DeliveryStatus.EN_ROUTE
+            pkg.setStatus(DeliveryStatus.EN_ROUTE)
             continue
 
         #Take care of early deadlines
@@ -166,7 +168,7 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
                 flag = True
             #If assigned, continue
             if flag == True:
-                pkg.status = DeliveryStatus.EN_ROUTE
+                pkg.setStatus(DeliveryStatus.EN_ROUTE)
                 i += 1
                 continue
 
@@ -201,9 +203,7 @@ def beginDay():
     loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
     testFlag = True
     for truck in availableTrucks:
-        print(f"truck begin route at {truck.clock}")
-
-        print(hashmap.lookup(9)[1].status)
+        print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
         truck.beginRoute(distanceMatrix, hashmap)
 
         print(f"####################TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
@@ -211,13 +211,16 @@ def beginDay():
 
     while LOADED_PACKAGES[0] < TOTAL_PACKAGES:
         print("While loop executing")
-        availableTruck = min(trucks, key=lambda t: t.clock)
-        if availableTruck.curcapacity == 0:
+        truck = min(trucks, key=lambda t: t.clock)
+        if truck.curcapacity == 0:
             return
-        loadTrucks([availableTruck], 1, hashmap, distanceMatrix)
+        loadTrucks([truck], 1, hashmap, distanceMatrix)
         print(f"Truck dispatched at {truck.clock}")
-        availableTruck.beginRoute(distanceMatrix, hashmap, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
+        print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
+
+        truck.beginRoute(distanceMatrix, hashmap, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
         testFlag = False
+        print("while loop iteration complete")
         
     print("ALL PACKAGES LOADED")
 

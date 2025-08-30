@@ -82,30 +82,37 @@ class Truck:
 
 
     def setHomeNext(self):
-            self.unvisited.append([0, "4001 South 700 East, Salt Lake City, UT"])
+            self.unvisited.insert(0, [0, "4001 South 700 East, Salt Lake City, UT"])
             self.returnHome = True
 
 
-    def deliverPackage(self, hashmap):
-        hashmap.lookup(self.nextPackageID)[1].status = DeliveryStatus.DELIVERED
-        hashmap.lookup(self.nextPackageID)[1].timeDelivered = self.clock
-        # print(f"self has updated packageID {self.nextPackageID} to status {hashmap.lookup(self.nextPackageID)[1].status} at time {self.clock} with mileage {self.mileage}")
-        if hashmap.lookup(self.nextPackageID)[1].deadline != "EOD" and self.nextPackageID != 0: # =0 is go home
-            deadline = datetime.strptime(hashmap.lookup(self.nextPackageID)[1].deadline, "%I:%M %p").time()
-            deadline = datetime.combine(datetime.today(), deadline)
+    def deliverPackage(self, hashmap, id=-1):
+        if id == -1: 
+            id = self.nextPackageID
+        
+        hashmap.lookup(id)[1].status = DeliveryStatus.DELIVERED
+        hashmap.lookup(id)[1].timeDelivered = self.clock
+
+        if hashmap.lookup(id)[1].deadline != "EOD" and id != 0: # =0 is go home
+            
+            #Check package delivered on-time
+            deadline = datetime.strptime(hashmap.lookup(id)[1].deadline, "%I:%M %p").time()
+            deadline = datetime.combine(datetime.today(), deadline) 
             if self.clock > deadline:
-                print(f"{self.nextPackageID} was delivered late at {self.clock}")
+                print(f"{id} was delivered late at {self.clock}")
                 raise Exception("Package missed delivery deadline")
-            for id in self.standardQueue + self.priorityQueue:
-                if int(id) == int(self.nextPackageID):
-                    try: 
-                        self.priorityQueue.remove(id)
-                        print("Package removed from priorityQueue")
-                        print(len(self.priorityQueue))
-                        break
-                    except:
-                        self.standardQueue.remove(id)
-                        break
+            
+            #Remove from queue
+        for id in self.standardQueue + self.priorityQueue:
+            if int(id) == int(id):
+                try: 
+                    self.priorityQueue.remove(id)
+                    print("Package removed from priorityQueue: ")
+                    print(len(self.priorityQueue))
+                    break
+                except:
+                    self.standardQueue.remove(id)
+                    break
 
 
     # def prepareForNextDelivery():
@@ -120,14 +127,22 @@ class Truck:
         #Start routing algorithm
         while len(self.unvisited) > 0:
             self.assignNextStop(distanceMatrix, hashmap)
+            
 
             if self.clock + timedelta(minutes=int(self.nearestDistance/self.mph*60)) < endTime:
                 self.travelToStop()
-            else:
+            # else:
+            #     break
+
+
+            if self.location == matchKey("4001 South 700 East, Salt Lake City, UT", distanceMatrix):
+                self.nearestDistance = 1000
                 break
 
             self.deliverPackage(hashmap)
-
+            deliverHere =  [pkg for pkg in self.unvisited if hashmap.lookup(pkg[0])[1].address == self.location]
+            for id in deliverHere:
+                self.deliverPackage(hashmap, id)
             #Remove package from queue. Mark as delivered
 
             #Search for and remove from queues

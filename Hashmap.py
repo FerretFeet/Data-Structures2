@@ -40,11 +40,11 @@ class Hashmap:
         attributes = vars(target[1])
 
         # print items, then return the object
-        for attr_name, attr_val in attributes.items():
+        # for attr_name, attr_val in attributes.items():
             # Enum needs special case to look nice
-            if isinstance(attr_val, Enum):
-                print(f"{attr_name}: {attr_val.name}")
-            else:
-                print(f"{attr_name}: {attr_val}");
+            # if isinstance(attr_val, Enum):
+            #     print(f"{attr_name}: {attr_val.name}")
+            # else:
+            #     print(f"{attr_name}: {attr_val}");
         
         return target;

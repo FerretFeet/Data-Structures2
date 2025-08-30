@@ -21,4 +21,5 @@ def calculateDistance(location1, location2, distanceMatrix):
 
 
 def matchKey(item, matrix):
+    # print(f"MatchKey Item{item}")
     return max(matrix.keys(), key=lambda x: SequenceMatcher(None, normalize(item), normalize(x)).ratio())
