@@ -54,12 +54,8 @@ class Truck:
     def assignNextStop(self, distanceMatrix, hashmap, locationTuple):
         #Find nearest location/package
         for id, address in self.unvisited:
-            #find fuzzy match
-            #trim the beginning of the key for better address matching
-            # temploc = matchKey(address, distanceMatrix)
-            print(f"Looking for next stop to assign. Current Loc: {self.location}, Potential match = {address}")
+
             temploc = matchLoc(address, locationTuple)
-            print(f"TEMPLOC created as {temploc}")
             distance = calculateDistance(self.location, temploc, distanceMatrix)
             #Ensure standard packages arent delivered before priority
             if distance < self.nearestDistance and ((len(self.priorityQueue) == 0) or (hashmap.lookup(id)[1].deadline != "EOD")):
@@ -127,7 +123,6 @@ class Truck:
     def beginRoute(self, distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(23, 59, 59))):
         # self.location = matchKey(self.location, distanceMatrix)
         self.location = matchLoc(self.location, locationTuple)
-        print(f"TruckLoc: {self.location} PACKAGES: {self.priorityQueue}, {self.standardQueue}")
 
         self.populateUnvisited(hashmap)
 

@@ -14,7 +14,6 @@ def normalize(loc):
 
 
 def calculateDistance(location1, location2, distanceMatrix):
-    print(f"CALC DISTANCE: {location1}, {location2}")
     try:
         #not all two-way combinations exist in matrix, so try each way
         return distanceMatrix[location1][location2]

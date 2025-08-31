@@ -88,10 +88,7 @@ def preSort():
             if val.sortedFlag == True:
                 continue
             # dest = matchKey(val.address, distanceMatrix)
-            print(f"VAL ADDRESS = {val.address}")
             dest = matchLoc(val.address, locationTuple)
-            print(f"Mepo Location: {mepo.location}")
-            print(f"dest Location: {dest}")
             distance = calculateDistance(mepo.location, dest, distanceMatrix)
 
             if distance < mepo.nearestDistance:
@@ -217,7 +214,7 @@ def beginDay():
         print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
         truck.beginRoute(distanceMatrix, hashmap, locationTuple)
 
-        print(f"####################TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
+        print(f"TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
     #all trucks loaded once, now reload based off first return
 
     while LOADED_PACKAGES[0] < TOTAL_PACKAGES:
