@@ -1,7 +1,7 @@
 from datetime import datetime, time, timedelta
 
 from DelPackage import DeliveryStatus
-from helpers import calculateDistance, matchKey
+from helpers import calculateDistance, matchLoc
 
 
 class Truck:
@@ -12,7 +12,7 @@ class Truck:
         self.standardQueue = [];
         self.priorityQueue = [];
         self.curcapacity = 0
-        self.location = "4001 South 700 East, Salt Lake City, UT"
+        self.location = "Hub"
         self.visited = []
         self.unvisited = []
         self.mph = 18
@@ -51,23 +51,27 @@ class Truck:
 
 
 
-    def assignNextStop(self, distanceMatrix, hashmap):
-                #Find nearest location/package
-            for id, address in self.unvisited:
-                #find fuzzy match
-                #trim the beginning of the key for better address matching
-                temploc = matchKey(address, distanceMatrix)
-                distance = calculateDistance(self.location, temploc, distanceMatrix)
-                #Ensure standard packages arent delivered before priority
-                if distance < self.nearestDistance and ((len(self.priorityQueue) == 0) or (hashmap.lookup(id)[1].deadline != "EOD")):
-                    self.nearestDistance = distance
-                    self.nextPackageID = id
-                    self.nearestLocation = temploc
-                    return id
+    def assignNextStop(self, distanceMatrix, hashmap, locationTuple):
+        #Find nearest location/package
+        for id, address in self.unvisited:
+            #find fuzzy match
+            #trim the beginning of the key for better address matching
+            # temploc = matchKey(address, distanceMatrix)
+            print(f"Looking for next stop to assign. Current Loc: {self.location}, Potential match = {address}")
+            temploc = matchLoc(address, locationTuple)
+            print(f"TEMPLOC created as {temploc}")
+            distance = calculateDistance(self.location, temploc, distanceMatrix)
+            #Ensure standard packages arent delivered before priority
+            if distance < self.nearestDistance and ((len(self.priorityQueue) == 0) or (hashmap.lookup(id)[1].deadline != "EOD")):
+                self.nearestDistance = distance
+                self.nextPackageID = id
+                self.nearestLocation = temploc
+                return id
 
 
 
     def travelToStop(self): 
+        print(f"Traveling To Next Stop {self.nearestLocation}, From {self.location}")
             #Deliver the package
         # print('traveling to stop')
         self.mileage += self.nearestDistance
@@ -81,8 +85,8 @@ class Truck:
         
 
 
-    def setHomeNext(self):
-            self.unvisited.insert(0, [0, "4001 South 700 East, Salt Lake City, UT"])
+    def setHomeNext(self, matchKey):
+            self.unvisited.insert(0, [0, matchLoc("hub", matchKey)])
             self.returnHome = True
 
 
@@ -120,13 +124,16 @@ class Truck:
 
 
 #Begin routing
-    def beginRoute(self, distanceMatrix, hashmap, endTime=datetime.combine(datetime.today(), time(23, 59, 59))):
-        self.location = matchKey(self.location, distanceMatrix)
+    def beginRoute(self, distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(23, 59, 59))):
+        # self.location = matchKey(self.location, distanceMatrix)
+        self.location = matchLoc(self.location, locationTuple)
+        print(f"TruckLoc: {self.location} PACKAGES: {self.priorityQueue}, {self.standardQueue}")
+
         self.populateUnvisited(hashmap)
 
         #Start routing algorithm
         while len(self.unvisited) > 0:
-            self.assignNextStop(distanceMatrix, hashmap)
+            self.assignNextStop(distanceMatrix, hashmap, locationTuple)
             
 
             if self.clock + timedelta(minutes=int(self.nearestDistance/self.mph*60)) < endTime:
@@ -135,7 +142,8 @@ class Truck:
             #     break
 
 
-            if self.location == matchKey("4001 South 700 East, Salt Lake City, UT", distanceMatrix):
+            # if self.location == matchKey("4001 South 700 East, Salt Lake City, UT", distanceMatrix):
+            if self.location == matchLoc("Hub", locationTuple):
                 self.nearestDistance = 1000
                 break
 
@@ -149,7 +157,7 @@ class Truck:
 
             #Return to Hub after all packages delivered.
             if len(self.unvisited) == 0 and self.returnHome == False:
-                self.setHomeNext()
+                self.setHomeNext(locationTuple)
             #Reset self.nearestDistance
             self.nearestDistance = 1000
 

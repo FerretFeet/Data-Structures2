@@ -4,7 +4,7 @@ from DelPackage import DeliveryStatus
 from DelPackage import DelPackage
 from Hashmap import Hashmap
 from Truck import Truck
-from helpers import calculateDistance, matchKey
+from helpers import calculateDistance, matchKey, matchLoc, normalize
 
 ##Config Vars
 NUM_TRUCKS = 3
@@ -27,6 +27,7 @@ DELAYED_PACKAGES = [
 trucks = [Truck() for i in range(NUM_TRUCKS)]
 hashmap = Hashmap(TOTAL_PACKAGES)
 distanceMatrix = {}
+locationTuple = []
 
 
 ##Load Data
@@ -43,7 +44,7 @@ with open('WGUPS_Package_File.csv', newline='') as csvfile:
 
         hashmap.insert(int(row["Package ID"]), DelPackage(
             row["Package ID"], 
-            row["Address"],
+            normalize(row["Address"]),
             row["City"],
             row["Zip"],
             row["Weight KILO"],
@@ -62,19 +63,22 @@ with open('WGUPS Distance Table.csv', newline='') as csvfile:
             headers = row[2:] #Skip first two columns
             continue
 
-        row_location = row[0]
-        distanceMatrix[row_location] = {}
-
+        rowLocation = normalize(row[0])
+        distanceMatrix[rowLocation] = {}
+        rowLocationMatch = normalize(row[1].split("(")[0].strip())
+        locationTuple.append([rowLocation, rowLocationMatch])
         for i, value in enumerate(row[2:]): #skip first two columns
             if value:
-                distanceMatrix[row_location][headers[i]] = float(value)
+                distanceMatrix[rowLocation][normalize(headers[i])] = float(value)
 
 
 ##helper functions
 
 def preSort():
     mepo = Truck(TOTAL_PACKAGES) #Will be using truck methods to order
-    mepo.location = matchKey(mepo.location, distanceMatrix)
+    # mepo.location = matchKey(mepo.location, distanceMatrix)
+
+    mepo.location = matchLoc(mepo.location, locationTuple)
     plist = []
     while len(plist) < TOTAL_PACKAGES:
         mepo.nearestDistance = 1000
@@ -83,8 +87,11 @@ def preSort():
                 continue
             if val.sortedFlag == True:
                 continue
-
-            dest = matchKey(val.address, distanceMatrix)
+            # dest = matchKey(val.address, distanceMatrix)
+            print(f"VAL ADDRESS = {val.address}")
+            dest = matchLoc(val.address, locationTuple)
+            print(f"Mepo Location: {mepo.location}")
+            print(f"dest Location: {dest}")
             distance = calculateDistance(mepo.location, dest, distanceMatrix)
 
             if distance < mepo.nearestDistance:
@@ -199,12 +206,16 @@ def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
         print(f"PackageID {package.id} has status {package.status.name}, {package.timeDelivered}")
         
 def beginDay():
+
+
+
+
     availableTrucks = trucks.copy()
     loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
     testFlag = True
     for truck in availableTrucks:
         print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
-        truck.beginRoute(distanceMatrix, hashmap)
+        truck.beginRoute(distanceMatrix, hashmap, locationTuple)
 
         print(f"####################TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
     #all trucks loaded once, now reload based off first return
@@ -218,7 +229,7 @@ def beginDay():
         print(f"Truck dispatched at {truck.clock}")
         print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
 
-        truck.beginRoute(distanceMatrix, hashmap, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
+        truck.beginRoute(distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
         testFlag = False
         print("while loop iteration complete")
         
