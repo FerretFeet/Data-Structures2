@@ -74,128 +74,6 @@ with open('WGUPS Distance Table.csv', newline='') as csvfile:
 
 ##helper functions
 
-
-
-# def preSort():
-#     unevaldPackageIDs = []
-#     sortedPackageIDs = []
-#     unavailablePackageIDs = []
-    
-#     unevaldPackageIDs = [i for i in range(TOTAL_PACKAGES)]
-#     startingLocation = matchLoc("hub", locationTuple)
-
-#     counter = 0
-#     while counter > TOTAL_PACKAGES:
-#         #Reset Distance at beginning of each NN search
-#         startingDistance = 1000
-#         #Initialize extraction variables
-#         nextPackageID = None
-#         nearestLocation = None
-
-#         for pkgID in unevaldPackageIDs:
-#             #Skip if already sorted
-#             if pkgID == -1:
-#                 continue
-
-#             pkg = hashmap.lookup(pkgID)[1]
-
-#             #Only Sort If At_HUB
-#             if pkg.status != DeliveryStatus.AT_HUB:
-#                 unevaldPackageIDs[pkgID] = -1
-#                 unavailablePackageIDs.append(pkgID)
-#                 counter += 1
-#                 continue
-
-#             #Calc Distance
-#             destination = matchLoc(pkg.address, locationTuple)
-#             distance = calculateDistance(startingLocation, destination, distanceMatrix)
-
-#             #Replace if lesser
-#             if distance < startingDistance:
-#                 nextPackageID = pkgID
-#                 nearestLocation = destination
-
-#         #Extract nearest values, then repeat until done
-#         print(f"NEXT PACKAGE ID: {nextPackageID}")
-#         print(f"unevald packaes = {unevaldPackageIDs}")
-#         unevaldPackageIDs[nextPackageID] = -1
-#         sortedPackageIDs.append(nextPackageID)
-#         startingLocation = nearestLocation
-#         counter += 1
-
-#     print("Sorted and unvailable package ids")
-#     print(sortedPackageIDs)
-#     print(unavailablePackageIDs)
-#     return sortedPackageIDs
-
-
-
-
-# def preSort():
-#     mepo = Truck(TOTAL_PACKAGES) #Will be using truck methods to order
-#     # mepo.location = matchKey(mepo.location, distanceMatrix)
-#     mepo.populateUnvisited(hashmap)
-#     mepo.location = matchLoc(mepo.location, locationTuple)
-#     plist = []
-#     counter = 0
-#     print(mepo.unvisited)
-#     while i < TOTAL_PACKAGES:
-#         mepo.assignPackage(i)
-    
-
-#     #For Each Unloaded Package, sort
-#     while counter < TOTAL_PACKAGES - LOADED_PACKAGES[0]:
-#         #Reset Distance
-#         mepo.nearestDistance = 1000
-#         finalDest = None
-
-#         # mepo.assignNextStop(distanceMatrix, hashmap, locationTuple)
-#         for id, address in mepo.unvisited:
-
-#             temploc = matchLoc(address, locationTuple)
-#             distance = calculateDistance(mepo.location, temploc, distanceMatrix)
-#             #Ensure standard packages arent delivered before priority
-#             if distance < mepo.nearestDistance and ((len(mepo.priorityQueue) == 0) or (hashmap.lookup(id)[1].deadline != "EOD")):
-#                 mepo.nearestDistance = distance
-#                 mepo.nextPackageID = id
-#                 mepo.nearestLocation = temploc
-#         plist.append(mepo.nextPackageID)
-#         counter += 1
-            
-
-
-#         # for key, val in hashmap.data:
-#         #     #Ensure package AT_HUB
-#         #     if val.status in (DeliveryStatus.DELIVERED, DeliveryStatus.EN_ROUTE, DeliveryStatus.NOT_PREPARED):
-#         #         continue
-#         #     #Ensure NOT already sorted
-#         #     if val.sortedFlag == True:
-#         #         continue
-
-#         #     print(f"VAL ID {val.id}")
-#         #     print(f"Val Sorted Flag = {val.sortedFlag}")
-#         #     #Calc Distance
-#         #     print(f"mepo locatoin {mepo.location}")
-#         #     dest = matchLoc(val.address, locationTuple)
-#         #     print(f"Destination: {dest}")
-#         #     distance = calculateDistance(mepo.location, dest, distanceMatrix)
-#         #     print(f"Calc'd distance {distance}")
-#         #     #Replace if new distance < old distance
-#         #     if distance < mepo.nearestDistance:
-#         #         mepo.nearestDistance = distance
-#         #         mepo.nextPackageID = val.id
-#         #         finalDest = dest
-#         # #Lowest found, add to list and mark sorted
-#         # plist.append(mepo.nextPackageID)
-#         # hashmap.lookup(len(plist)-1)[1].sortedFlag = True
-#         # mepo.location = finalDest
-#         # counter += 1
-#         # print(f"Hash Item Marked as Sorted: {hashmap.lookup(len(plist)-1)[1].sortedFlag}")
-#         # #Repeat while
-#     print(plist)
-#     return plist
-
-
 def updateDelayedPackages(truck):
         #Prevent delayed packages to be assigned until they are available
     #PackageID and time
@@ -227,7 +105,6 @@ def assignToTruck(truck, packageID):
 #Through hard-coding
 def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
-    # plist = preSort()
     #used to evenly distribute priority packages
     i = 0
     # print(plist)
@@ -324,10 +201,8 @@ def beginDay():
     #all trucks loaded once, now reload based off first return
     x = 0
     while LOADED_PACKAGES[0] < TOTAL_PACKAGES:
-        print("While loop executing")
+        #Get earliest truck
         truck = min(trucks, key=lambda t: t.clock)
-        if truck.curcapacity == truck.maxcapacity:
-            print("Truck Full")
             
         # If Truck is early, wait
         waitTime = datetime.combine(datetime.today(), time(23,59,0))
@@ -338,32 +213,17 @@ def beginDay():
                 waitTime = pkgTime
         if waitTime != datetime.combine(datetime.today(), time(23,59,0)) and waitTime > truck.clock:
             truck.clock = waitTime
-        print(waitTime)
 
         loadTrucks([truck], 1, hashmap, distanceMatrix)
-        print(truck.standardQueue + truck.priorityQueue)
-        print(f"Truck dispatched at {truck.clock}")
+
         print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
         truck.beginRoute(distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
-    #     testFlag = False
-    #     print("while loop iteration complete")
-        print(f"LOADED TOTAL PKGS: {LOADED_PACKAGES[0]}: {TOTAL_PACKAGES}")
-        # if x == 3:
-        #     break
-        # x += 1
+  
         
     print("ALL PACKAGES LOADED")
 
 
-# loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
-# trucks[0].beginRoute(distanceMatrix, hashmap, locationTuple)
 
-# trucks[0].populateUnvisited(hashmap, locationTuple)
-# print(trucks[0].unvisited)
-# trucks[1].populateUnvisited(hashmap, locationTuple)
-# print(trucks[1].unvisited)
-# trucks[2].populateUnvisited(hashmap, locationTuple)
-# print(trucks[2].unvisited)
 
 beginDay()
 
