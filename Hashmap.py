@@ -29,9 +29,6 @@ class Hashmap:
                 elif hashvalue >= self.length - 1:
                     hashvalue = 0;
     
-    def remove(self, key):
-        self.data[key] = [[],[]]
-    
     def lookup(self, key):
         target = self.data[self._hash(int(key))]
         if target == False:

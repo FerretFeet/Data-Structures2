@@ -1,14 +1,5 @@
 from difflib import SequenceMatcher
 
-
-# def normalize(loc):
-#     #used to enable pattern matching for distanceMatrix
-#     substr = loc.lower().split()
-#     for i, ch in enumerate(substr):
-#         if ch.isdigit():
-#             return "".join(substr[i:])
-#     return "".join(substr)
-
 def normalize(loc):
     return loc.lower().strip()
 
@@ -26,11 +17,5 @@ def matchLoc(loc, matchTuple):
     for tloc in matchTuple:
         if loc == normalize(tloc[1]):
             return normalize(tloc[0])
-        # if loc == normalize(tloc[0]):
-        #     return normalize(tloc[1])
+    #if not found, return given loc
     return loc
-
-
-def matchKey(item, matrix):
-    # print(f"MatchKey Item{item}")
-    return max(matrix.keys(), key=lambda x: SequenceMatcher(None, normalize(item), normalize(x)).ratio())

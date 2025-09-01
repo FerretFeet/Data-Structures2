@@ -10,9 +10,9 @@ from helpers import calculateDistance, matchKey, matchLoc, normalize
 NUM_TRUCKS = 3
 TOTAL_PACKAGES = 40
 LOADED_PACKAGES = [0]
-# TOTAL_PRIORITY_PACKAGES = 14
 
-##Ppackage restrictions
+
+##Package restrictions
 REQUIRE_TRUCK_2 = [3, 18, 36, 38]
 GROUPED_PACKAGES = [14, 15, 16, 19, 20]
 DELAYED_PACKAGES = [
@@ -74,26 +74,26 @@ with open('WGUPS Distance Table.csv', newline='') as csvfile:
 
 ##helper functions
 
-def updateDelayedPackages(truck):
-        #Prevent delayed packages to be assigned until they are available
-    #PackageID and time
-        for packageID, time in DELAYED_PACKAGES:
-            pkg = hashmap.lookup(packageID)[1]
-            if pkg.delayedTime == None:
-                pkg.delayedTime = time
+def updateDelayedPackages(truckTime):
+    #Prevent delayed packages to be assigned until they are available
+    for packageID, time in DELAYED_PACKAGES:
+        pkg = hashmap.lookup(packageID)[1]
+        if pkg.delayedTime == None:
+            pkg.delayedTime = time
 
-            if pkg.status != DeliveryStatus.NOT_PREPARED:
-                continue
-            if (time <= truck.clock):
-                #Mark as AT_HUB then proceed to execute function
-                pkg.setStatus(DeliveryStatus.AT_HUB)
-                if packageID == 9:
-                    #Update Address
-                    pkg.address = "410 S State St"
-                    pkg.zip = "84111"
+        if pkg.status != DeliveryStatus.NOT_PREPARED:
+            continue
+        if (time <= truckTime):
+            #Mark as AT_HUB then proceed to execute function
+            pkg.setStatus(DeliveryStatus.AT_HUB)
+            if packageID == 9:
+                #Update Address
+                pkg.address = "410 S State St"
+                pkg.zip = "84111"
 
 
 def assignToTruck(truck, packageID):
+    #Ensure there is space, then assign package with/without priority
     if truck.curcapacity < truck.maxcapacity:
         if hashmap.lookup(packageID)[1].deadline != "EOD":
             truck.assignPackage(packageID, True)
@@ -105,23 +105,72 @@ def assignToTruck(truck, packageID):
 
 
 
+def getStatus(testTime):
+    #Get package status and truck mileage at time
+    for truck in trucks:
+        temp = truck.getMileage(testTime)
+        print(f"Truck Mileage at {testTime}: {temp}")
+    
+    
+    #print pkg data
+    for id, pkg in hashmap.data:
+        #If earlier than delayedTime
+        if pkg.delayedTime and testTime < pkg.delayedTime:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.NOT_PREPARED.name}")
+            continue
+
+        #if earlier than load time
+        if testTime < pkg.timeLoaded:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.AT_HUB.name}")
+            continue
+
+        #if earlier than deliver time
+        if testTime < pkg.timeDelivered:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.EN_ROUTE.name}")
+            continue
+
+        #if after deliver time
+        if testTime >= pkg.timeDelivered:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.DELIVERED.name}")
+            continue 
+
+        else:
+            raise Exception("Pkg Status not able to be retrieved")
+
+
+
+def promptGetStatus():
+    while True:
+        print("Get Truck and Package Status at Requested Time")
+        print("(Input Format hh,mm,ss. q to quit)")
+        requestedTime = input()
+        if requestedTime == "q":
+            return
+        substr = requestedTime.split(",")
+        formattedTime = datetime.combine(datetime.today(), time(int(substr[0]), int(substr[1]), int(substr[2])))
+        getStatus(formattedTime)
+
+
 #Due to complex restrictions, certain packages are loaded to trucks
 #Through hard-coding
 def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
     #used to evenly distribute priority packages
+    #incremented seperately from for loop
     i = 0
+
     for key, pkg in hashmap.data:
-        # pkg = hashmap.lookup(pkgId)[1]
 
         if pkg.status == DeliveryStatus.NOT_PREPARED:
-        #Only trucks[0] checked b/c after initial function call
-        #trucks length will be 1
-            updateDelayedPackages(trucks[0])
+            #Only uses first truck clock
+            #if multiple trucks are passed to loadTrucks, they
+            #  SHOULD have the same clock time.
+            updateDelayedPackages(trucks[0].clock)
 
-
+        #Skip if not at hub
         if pkg.status != DeliveryStatus.AT_HUB:
             continue
+
 
         #Hardcoded Restrictions:
 
@@ -151,11 +200,13 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
                 assignToTruck(trucks[2], pkg.id)
                 hashmap.lookup(pkg.id)[1].timeLoaded = trucks[2].clock
                 flag = True
-            #If assigned, continue
+
+            #If assigned, update and continue
             if flag == True:
                 pkg.setStatus(DeliveryStatus.EN_ROUTE)
                 i += 1
                 continue
+
 
         # All Other Packages go here
         for truck in trucks:
@@ -174,24 +225,16 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
 
 
-# def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
 
         
 def beginDay():
+    #Main Function
 
-    availableTrucks = trucks.copy()
     loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
-    testFlag = True
-    for truck in availableTrucks:
+    for truck in trucks:
         truck.beginRoute(distanceMatrix, hashmap, locationTuple)
 
-
-
-
-
-
     #all trucks loaded once, now reload based off first return
-    x = 0
     while LOADED_PACKAGES[0] < TOTAL_PACKAGES:
         #Get earliest truck
         truck = min(trucks, key=lambda t: t.clock)
@@ -205,9 +248,9 @@ def beginDay():
         if waitTime != datetime.combine(datetime.today(), time(23,59,0)) and waitTime > truck.clock:
             truck.clock = waitTime
 
+        #Load and deliver
         loadTrucks([truck], 1, hashmap, distanceMatrix)
-
-        truck.beginRoute(distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
+        truck.beginRoute(distanceMatrix, hashmap, locationTuple)
   
         
 
@@ -216,10 +259,8 @@ def beginDay():
 
 beginDay()
 
-# getStatus(trucks, hashmap)
 
-# trucks[0].getStatus(datetime.combine(datetime.today() ,time(9,0,0)))
-# trucks[0].getStatus(datetime.combine(datetime.today() ,time(10,12,0)))
+
 
 
 testTimes = [
@@ -227,45 +268,6 @@ testTimes = [
     datetime.combine(datetime.today(), time(10, 12, 0)),
     datetime.combine(datetime.today(), time(12,54,0))
 ]
-def getStatus(testTime):
-    # fullTime = datetime.combine(datetime.today() + timedelta(testTime))
-    for truck in trucks:
-        temp = truck.getMileage(testTime)
-        print(f"Truck Mileage at {testTime}: {temp}")
-    
-    # getStatus(trucks, hashmap, testTime)
-    
-    #print pkg data
-    for id, pkg in hashmap.data:
-        if pkg.delayedTime and testTime < pkg.delayedTime:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.NOT_PREPARED.name}")
-            continue
-
-
-        if testTime < pkg.timeLoaded:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.AT_HUB.name}")
-            continue
-
-        if testTime < pkg.timeDelivered:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.EN_ROUTE.name}")
-            continue
-
-        if testTime > pkg.timeDelivered:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.DELIVERED.name}")
-            continue 
-
-        else:
-            raise Exception("Pkg Status not able to be retrieved")
-
-
-
-def promptGetStatus():
-    print("Get Truck and Package Status at Requested Time")
-    print("(Input Format hh,mm,ss)")
-    requestedTime = input()
-    substr = requestedTime.split(",")
-    formattedTime = datetime.combine(datetime.today(), time(int(substr[0]), int(substr[1]), int(substr[2])))
-    getStatus(formattedTime)
 
 
 

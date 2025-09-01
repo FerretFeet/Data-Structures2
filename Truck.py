@@ -8,10 +8,10 @@ class Truck:
     startTime = datetime.combine(datetime.today(), time(8,0,0))
     def __init__(self, maxcapacity=16):
         self.status =0 #0 is home, 1 is away
-        self.maxcapacity = maxcapacity;
-        self.mileage = 0;
-        self.standardQueue = [];
-        self.priorityQueue = [];
+        self.maxcapacity = maxcapacity
+        self.mileage = 0
+        self.standardQueue = []
+        self.priorityQueue = []
         self.curcapacity = 0
         self.location = "Hub"
         self.visited = []
@@ -40,13 +40,10 @@ class Truck:
             self._assignPackage(delpackageid, self.priorityQueue)
         else:
             self._assignPackage(delpackageid, self.standardQueue)
-
-    
-    def assignPriorityPackage(self, delpackageid):
-        self._assignPackage(delpackageid, self.priorityQueue)
     
 
     def populateUnvisited(self, hashmap, locationTuple):
+        #creat a list of tuples with [addr, [list of pkgIDs]]
         self.unvisited=[]
 
         for pkgID in self.standardQueue + self.priorityQueue:
@@ -82,12 +79,9 @@ class Truck:
                     self.nextPackageID = id
                     self.nearestLocation = temploc
              
-        print(f"Assigning Next Stop: {self.location} -> {self.nearestLocation}")
-
 
 
     def travelToStop(self): 
-        temp = self.location
         timeTravelled = timedelta(seconds=self.nearestDistance/self.mph*3600)
         self.mileage += self.nearestDistance
 
@@ -95,16 +89,6 @@ class Truck:
 
         self.location = self.nearestLocation
         self.clock += timeTravelled
-
-        # print(
-        #       "TravelToStop:\n"
-        #       f"Mileage: {self.mileage}\n"
-        #       f"Location: {self.location}\n"
-        #       f"Distance: {self.nearestDistance}\n"
-        #       f"Time: {self.clock}\n"
-        #       f"Package: {self.nextPackageID}"
-        #       )
-
 
         #Search through list to find match, then remove from unvisited locations
         for subarr in self.unvisited:
@@ -122,7 +106,7 @@ class Truck:
     def deliverPackage(self, hashmap, id=-1):
         #If not given, set
         if id == -1: 
-            id = self.nextPackageID
+            id = self.nextPackageID[0]
         
         #Update variables
         hashmap.lookup(id)[1].status = DeliveryStatus.DELIVERED
@@ -130,15 +114,15 @@ class Truck:
         self.deliveredPackages.append(id)
 
 
+        #Check package hasnt missed deadline
         if hashmap.lookup(id)[1].deadline != "EOD" and id != 0: # =0 is go home
-
-            #Check package delivered on-time
             deadline = datetime.strptime(hashmap.lookup(id)[1].deadline, "%I:%M %p").time()
             deadline = datetime.combine(datetime.today(), deadline) 
             if self.clock > deadline:
                 raise Exception(f"Package {id} missed delivery deadline")
-            
-            #Remove from queue
+
+
+        #Remove from queue
         for idx in self.standardQueue + self.priorityQueue:
             if int(idx) == int(id):
                 try: 
@@ -150,10 +134,8 @@ class Truck:
                     break
 
 
-    # def prepareForNextDelivery():
 
-
-    def deliverPackages(self, hashmap, locationTuple):
+    def deliverPackages(self, hashmap):
         pkgs = None
         for item in self.visited:
             if item[0] == self.location:
@@ -163,11 +145,10 @@ class Truck:
 
 
     def getMileage(self, statusTime):
+    #get mileage at given time
         totalTime = self.startTime
         totalMileage = 0
         for rTime, mileage in self.routeSeg:
-            #Need to update time
-            # tempTime = datetime.combine(datetime.today(), rTime)
             if statusTime > totalTime + rTime:
                 totalTime += rTime
                 totalMileage += mileage
@@ -176,28 +157,27 @@ class Truck:
 
 #Begin routing
     def beginRoute(self, distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(23, 59, 59))):
+        
+        #Prepare variables
         self.location = matchLoc(self.location, locationTuple)
-
         self.populateUnvisited(hashmap, locationTuple)
 
         #Start routing algorithm
         while len(self.unvisited) > 0:
 
-            self.assignNextStop(distanceMatrix, hashmap, locationTuple)
-            
-            # if self.clock + timedelta(minutes=int(self.nearestDistance/self.mph*60)) < endTime:
+            self.assignNextStop(distanceMatrix, hashmap, locationTuple) 
             self.travelToStop()
-
-
-            self.deliverPackages(hashmap, locationTuple)
+            self.deliverPackages(hashmap)
 
             #Reset self.nearestDistance
             self.nearestDistance = 1000
 
-        print("Going Home")
+        #End Loop
 
         self.setHomeNext(locationTuple)
         self.travelToStop
+
+        #Empty used variables
         self.visited = []
         self.curcapacity = 0
         
