@@ -77,16 +77,20 @@ with open('WGUPS Distance Table.csv', newline='') as csvfile:
 def updateDelayedPackages(truck):
         #Prevent delayed packages to be assigned until they are available
     #PackageID and time
-        for package, time in DELAYED_PACKAGES:
-            if hashmap.lookup(package)[1].status != DeliveryStatus.NOT_PREPARED:
+        for packageID, time in DELAYED_PACKAGES:
+            pkg = hashmap.lookup(packageID)[1]
+            if pkg.delayedTime == None:
+                pkg.delayedTime = time
+
+            if pkg.status != DeliveryStatus.NOT_PREPARED:
                 continue
             if (time <= truck.clock):
                 #Mark as AT_HUB then proceed to execute function
-                hashmap.lookup(package)[1].setStatus(DeliveryStatus.AT_HUB)
-                if package == 9:
+                pkg.setStatus(DeliveryStatus.AT_HUB)
+                if packageID == 9:
                     #Update Address
-                    hashmap.lookup(package)[1].address = "410 S State St"
-                    hashmap.lookup(package)[1].zip = "84111"
+                    pkg.address = "410 S State St"
+                    pkg.zip = "84111"
 
 
 def assignToTruck(truck, packageID):
@@ -107,7 +111,6 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
     #used to evenly distribute priority packages
     i = 0
-    # print(plist)
     for key, pkg in hashmap.data:
         # pkg = hashmap.lookup(pkgId)[1]
 
@@ -116,9 +119,6 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
         #trucks length will be 1
             updateDelayedPackages(trucks[0])
 
-        print(pkg.address)
-        print(key)
-        print(pkg.deadline)
 
         if pkg.status != DeliveryStatus.AT_HUB:
             continue
@@ -142,11 +142,14 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
             if i % numTrucks == 0 and trucks[0].status == 0 and len(trucks[0].priorityQueue) < 5:
                 assignToTruck(trucks[0], pkg.id)
                 flag = True
+                hashmap.lookup(pkg.id)[1].timeLoaded = trucks[0].clock
             elif i % numTrucks == 1 and trucks[1].status == 0 and len(trucks[1].priorityQueue) < 5:
                 assignToTruck(trucks[1], pkg.id)
                 flag = True
+                hashmap.lookup(pkg.id)[1].timeLoaded = trucks[1].clock
             elif i % numTrucks == 2 and trucks[2].status == 0 and len(trucks[2].priorityQueue) < 5:
                 assignToTruck(trucks[2], pkg.id)
+                hashmap.lookup(pkg.id)[1].timeLoaded = trucks[2].clock
                 flag = True
             #If assigned, continue
             if flag == True:
@@ -156,12 +159,9 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
         # All Other Packages go here
         for truck in trucks:
-            print("CurTest:")
-            print(f"{truck.status}")
-            print(f"{truck.curcapacity}")
             if truck.curcapacity + 1 < truck.maxcapacity and truck.status == 0: 
-                print(pkg.id)
                 assignToTruck(truck, pkg.id)
+                hashmap.lookup(pkg.id)[1].timeLoaded = truck.clock
                 break
         
         #if final truck is full, no more package to assign
@@ -174,14 +174,8 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 
 
 
-def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
-    i=0
-    print(f"Status at time {curTime}")
-    for truck in trucks:
-        i +=1
-        print(f"Truck {i} has {truck.mileage} miles driven")
-    for key, package in hashmap.data:
-        print(f"PackageID {package.id} has status {package.status.name}, {package.timeDelivered}")
+# def getStatus(trucks, hashmap, curTime=time(23, 59, 0)):
+
         
 def beginDay():
 
@@ -189,10 +183,8 @@ def beginDay():
     loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
     testFlag = True
     for truck in availableTrucks:
-        print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
         truck.beginRoute(distanceMatrix, hashmap, locationTuple)
 
-        print(f"TRUCK FINISHED WITH MILEAGE {truck.mileage} AND TIME {truck.clock}")
 
 
 
@@ -206,7 +198,6 @@ def beginDay():
             
         # If Truck is early, wait
         waitTime = datetime.combine(datetime.today(), time(23,59,0))
-        print(f"DELAYED PKGS = {DELAYED_PACKAGES}")
         for pkgID, pkgTime in DELAYED_PACKAGES:
             pkg = hashmap.lookup(pkgID)[1]
             if waitTime > pkgTime and pkg.status == DeliveryStatus.NOT_PREPARED:
@@ -216,30 +207,72 @@ def beginDay():
 
         loadTrucks([truck], 1, hashmap, distanceMatrix)
 
-        print(f"truck begin route at {truck.clock} with {truck.standardQueue} and {truck.priorityQueue}")
         truck.beginRoute(distanceMatrix, hashmap, locationTuple, endTime=datetime.combine(datetime.today(), time(10, 15, 0)) if testFlag == True else datetime.combine(datetime.today(), time(23, 59, 0)))
   
         
-    print("ALL PACKAGES LOADED")
 
 
 
 
 beginDay()
 
-getStatus(trucks, hashmap)
+# getStatus(trucks, hashmap)
 
-# testTimes = [
-#     datetime.combine(datetime.today(), time(9, 0, 0)),
-#     datetime.combine(datetime.today(), time(10, 12, 0)),
-#     datetime.combine(datetime.today(), time(12,54,0))
-# ]
+# trucks[0].getStatus(datetime.combine(datetime.today() ,time(9,0,0)))
+# trucks[0].getStatus(datetime.combine(datetime.today() ,time(10,12,0)))
 
-# for testTime in testTimes:
-#     # fullTime = datetime.combine(datetime.today() + timedelta(testTime))
-#     for truck in trucks:
-#         beginRoute(truck, distanceMatrix, hashmap, testTime)
-#     getStatus(trucks, hashmap, testTime)
 
+testTimes = [
+    datetime.combine(datetime.today(), time(8, 5, 0)),
+    datetime.combine(datetime.today(), time(10, 12, 0)),
+    datetime.combine(datetime.today(), time(12,54,0))
+]
+def getStatus(testTime):
+    # fullTime = datetime.combine(datetime.today() + timedelta(testTime))
+    for truck in trucks:
+        temp = truck.getMileage(testTime)
+        print(f"Truck Mileage at {testTime}: {temp}")
+    
+    # getStatus(trucks, hashmap, testTime)
+    
+    #print pkg data
+    for id, pkg in hashmap.data:
+        if pkg.delayedTime and testTime < pkg.delayedTime:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.NOT_PREPARED.name}")
+            continue
+
+
+        if testTime < pkg.timeLoaded:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.AT_HUB.name}")
+            continue
+
+        if testTime < pkg.timeDelivered:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.EN_ROUTE.name}")
+            continue
+
+        if testTime > pkg.timeDelivered:
+            print(f"Package {pkg.id} Status: {DeliveryStatus.DELIVERED.name}")
+            continue 
+
+        else:
+            raise Exception("Pkg Status not able to be retrieved")
+
+
+
+def promptGetStatus():
+    print("Get Truck and Package Status at Requested Time")
+    print("(Input Format hh,mm,ss)")
+    requestedTime = input()
+    substr = requestedTime.split(",")
+    formattedTime = datetime.combine(datetime.today(), time(int(substr[0]), int(substr[1]), int(substr[2])))
+    getStatus(formattedTime)
+
+
+
+for testTime in testTimes:
+    getStatus(testTime)
+
+
+promptGetStatus()
 
 # getStatus(trucks, hashmap, testTime)

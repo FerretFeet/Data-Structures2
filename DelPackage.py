@@ -20,6 +20,8 @@ class DelPackage:
         self.status = status;
         self.timeDelivered = timeDelivered;
         self.sortedFlag = False
+        self.delayedTime = None
+        self.timeLoaded = None
 
     
     def setStatus(self, value):
