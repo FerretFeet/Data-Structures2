@@ -1,7 +1,7 @@
 from difflib import SequenceMatcher
 
-def normalize(loc):
-    return loc.lower().strip()
+def normalize(uglyString):
+    return uglyString.lower().strip()
 
 
 def calculateDistance(location1, location2, distanceMatrix):

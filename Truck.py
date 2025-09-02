@@ -6,7 +6,8 @@ from helpers import calculateDistance, matchLoc
 
 class Truck:
     startTime = datetime.combine(datetime.today(), time(8,0,0))
-    def __init__(self, maxcapacity=16):
+    def __init__(self, id, maxcapacity=16):
+        self.id = id
         self.status =0 #0 is home, 1 is away
         self.maxcapacity = maxcapacity
         self.mileage = 0
@@ -82,6 +83,7 @@ class Truck:
 
 
     def travelToStop(self): 
+
         timeTravelled = timedelta(seconds=self.nearestDistance/self.mph*3600)
         self.mileage += self.nearestDistance
 
@@ -148,6 +150,9 @@ class Truck:
     #get mileage at given time
         totalTime = self.startTime
         totalMileage = 0
+        type(statusTime)
+        if type(statusTime) == datetime.time:
+            datetime.combine(datetime.today(), statusTime)
         for rTime, mileage in self.routeSeg:
             if statusTime > totalTime + rTime:
                 totalTime += rTime

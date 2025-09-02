@@ -36,12 +36,18 @@ class Hashmap:
         #generate a list of key:values for object attributes
         attributes = vars(target[1])
 
-        # print items, then return the object
-        for attr_name, attr_val in attributes.items():
-            # Enum needs special case to look nice
-            if isinstance(attr_val, Enum):
-                print(f"{attr_name}: {attr_val.name}")
-            else:
-                print(f"{attr_name}: {attr_val}");
+        # # print items, then return the object
+        # print("Hashmap Lookup")
+        # for idx, attr in enumerate(attributes.items()):
+        #     attr_name = attr[0]
+        #     attr_val = attr[1]
+        #     #Only first 9 valuese are relavent
+        #     if idx >= 9:
+        #         break
+        #     # Enum needs special case to look nice
+        #     if isinstance(attr_val, Enum):
+        #         print(f"{attr_name}: {attr_val.name}")
+        #     else:
+        #         print(f"{attr_name}: {attr_val}");
         
         return target;

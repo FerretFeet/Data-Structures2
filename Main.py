@@ -6,7 +6,7 @@ from DelPackage import DeliveryStatus
 from DelPackage import DelPackage
 from Hashmap import Hashmap
 from Truck import Truck
-from helpers import calculateDistance, matchKey, matchLoc, normalize
+from helpers import calculateDistance, matchLoc, normalize
 
 ##Config Vars
 NUM_TRUCKS = 3
@@ -26,7 +26,7 @@ DELAYED_PACKAGES = [
 ]
 
 ##Initialize objects
-trucks = [Truck() for i in range(NUM_TRUCKS)]
+trucks = [Truck(i+1) for i in range(NUM_TRUCKS)]
 hashmap = Hashmap(TOTAL_PACKAGES)
 distanceMatrix = {}
 locationTuple = []
@@ -102,55 +102,111 @@ def assignToTruck(truck, packageID):
         else:
             truck.assignPackage(packageID)
         LOADED_PACKAGES[0] += 1
+        hashmap.lookup(packageID)[1].truckAssigned = truck.id
     else:
         print("Truck full")
 
 
+def getTruckStatus(truckID, statusTime=datetime.combine(datetime.today(), time(23,59,0))):
+        
+        temp = trucks[truckID - 1].getMileage(statusTime)
+        print(f"Truck {truckID} Mileage at {statusTime}: {temp}")
 
-def getStatus(testTime):
+
+def getPkgStatus(pkgID, statusTime=datetime.combine(datetime.today(), time(23,59,0))):
+    #If earlier than delayedTime
+    pkg = hashmap.lookup(pkgID)[1]
+    if pkg.delayedTime and statusTime < pkg.delayedTime:
+        print(f"Package {pkg.id} Status: {DeliveryStatus.NOT_PREPARED.name}")
+        return
+
+    #if earlier than load time
+    if statusTime < pkg.timeLoaded:
+        print(f"Package {pkg.id} Status: {DeliveryStatus.AT_HUB.name}")
+        return
+
+    #if earlier than deliver time
+    if statusTime < pkg.timeDelivered:
+        print(f"Package {pkg.id} Status: {DeliveryStatus.EN_ROUTE.name} on Truck {pkg.truckAssigned}")
+        return
+
+    #if after deliver time
+    if statusTime >= pkg.timeDelivered:
+        print(f"Package {pkg.id} Status: {DeliveryStatus.DELIVERED.name} by Truck {pkg.truckAssigned} at {pkg.timeDelivered}")
+        return
+
+    else:
+        raise Exception("Pkg Status not able to be retrieved")
+
+def getStatusAll(testTime=datetime.combine(datetime.today(), time(23,59,0))):
     #Get package status and truck mileage at time
-    for truck in trucks:
-        temp = truck.getMileage(testTime)
-        print(f"Truck Mileage at {testTime}: {temp}")
+    for idx, truck in enumerate(trucks):
+        getTruckStatus(idx + 1, testTime)
     
     
     #print pkg data
     for id, pkg in hashmap.data:
         #If earlier than delayedTime
-        if pkg.delayedTime and testTime < pkg.delayedTime:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.NOT_PREPARED.name}")
-            continue
-
-        #if earlier than load time
-        if testTime < pkg.timeLoaded:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.AT_HUB.name}")
-            continue
-
-        #if earlier than deliver time
-        if testTime < pkg.timeDelivered:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.EN_ROUTE.name}")
-            continue
-
-        #if after deliver time
-        if testTime >= pkg.timeDelivered:
-            print(f"Package {pkg.id} Status: {DeliveryStatus.DELIVERED.name}")
-            continue 
-
-        else:
-            raise Exception("Pkg Status not able to be retrieved")
+        getPkgStatus(id, testTime)
 
 
 
 def promptGetStatus():
     while True:
-        print("Get Truck and Package Status at Requested Time")
-        print("(Input Format hh,mm,ss. q to quit)")
+        #Choose truck or package
+        print("Get Truck Mileage or Package Status at Requested Time")
+        print("(For truck status, enter t. For package status, enter p)")
+        print("q to quit")
+        selection = normalize(input())
+
+        #prompt for next input
+        if selection == "t":
+            print(f"Enter a valid truck id")
+            print(*range(1, len(trucks)+1))
+            print("q to quit")
+        
+        if selection == "p":
+            print("Enter a valid package id")
+            print(*range(hashmap.length))
+            print("q to quit")
+
+        if selection == "q":
+            return
+        
+        #Choose ID
+        chosenID = normalize(input())
+        if chosenID == "q":
+            return
+        chosenID = int(chosenID)
+
+        #Prompt for time
+        print("Enter a valid time")
+        print("(hh,mm,ss)")
+        print("q to quit")
+
         requestedTime = input()
         if requestedTime == "q":
             return
+        
+        #format time
         substr = requestedTime.split(",")
         formattedTime = datetime.combine(datetime.today(), time(int(substr[0]), int(substr[1]), int(substr[2])))
-        getStatus(formattedTime)
+
+        #return request
+        if selection == "p":
+            if (chosenID > hashmap.length):
+                print("Invalid package ID given")
+                continue
+            getPkgStatus(chosenID, formattedTime)
+            continue
+        if selection == "t":
+            if chosenID > len(trucks):
+                print("Invalid truck id")
+                continue
+            getTruckStatus(chosenID, formattedTime)
+            continue
+        print("Invalid value entered")
+
 
 
 #Due to complex restrictions, certain packages are loaded to trucks
@@ -261,7 +317,7 @@ def beginDay():
 
 beginDay()
 
-
+getStatusAll()
 
 
 
@@ -274,9 +330,9 @@ testTimes = [
 
 
 for testTime in testTimes:
-    getStatus(testTime)
+    getStatusAll(testTime)
 
 
 promptGetStatus()
 
-# getStatus(trucks, hashmap, testTime)
+# hashmap.lookup(1)

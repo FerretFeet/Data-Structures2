@@ -22,6 +22,7 @@ class DelPackage:
         self.sortedFlag = False
         self.delayedTime = None
         self.timeLoaded = None
+        self.truckAssigned = None
 
     
     def setStatus(self, value):
