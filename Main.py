@@ -112,42 +112,48 @@ def getTruckStatus(truckID, statusTime=datetime.combine(datetime.today(), time(2
         temp = trucks[truckID - 1].getMileage(statusTime)
         print(f"Truck {truckID} Mileage at {statusTime}: {temp}")
 
+def getAllTruckStatus(statusTime):
+    for truck in trucks:
+        getTruckStatus(truck.id, statusTime)
+
 
 def getPkgStatus(pkgID, statusTime=datetime.combine(datetime.today(), time(23,59,0))):
     #If earlier than delayedTime
     pkg = hashmap.lookup(pkgID)[1]
     if pkg.delayedTime and statusTime < pkg.delayedTime:
-        print(f"Package {pkg.id} Status: {DeliveryStatus.NOT_PREPARED.name}")
+        print(f"Package {pkg.id} \t Address: {pkg.address} \t Status: {DeliveryStatus.NOT_PREPARED.name} with dedline {pkg.deadline}")
         return
 
     #if earlier than load time
     if statusTime < pkg.timeLoaded:
-        print(f"Package {pkg.id} Status: {DeliveryStatus.AT_HUB.name}")
+        print(f"Package {pkg.id} \t Address: {pkg.address} \t Status: {DeliveryStatus.AT_HUB.name} with deadline {pkg.deadline}")
         return
 
     #if earlier than deliver time
     if statusTime < pkg.timeDelivered:
-        print(f"Package {pkg.id} Status: {DeliveryStatus.EN_ROUTE.name} on Truck {pkg.truckAssigned}")
+        print(f"Package {pkg.id} \t Address: {pkg.address} \t  Status: {DeliveryStatus.EN_ROUTE.name} on Truck {pkg.truckAssigned} since {pkg.timeLoaded}")
         return
 
     #if after deliver time
     if statusTime >= pkg.timeDelivered:
-        print(f"Package {pkg.id} Status: {DeliveryStatus.DELIVERED.name} by Truck {pkg.truckAssigned} at {pkg.timeDelivered}")
+        print(f"Package {pkg.id} \t Address: {pkg.address} \t  Status: {DeliveryStatus.DELIVERED.name} by Truck {pkg.truckAssigned} at {pkg.timeDelivered} with a delivery deadline of {pkg.deadline}")
         return
 
     else:
         raise Exception("Pkg Status not able to be retrieved")
+    
+
+def getAllPkgStatus(statusTime):
+    for id, pkg in hashmap.data:
+        getPkgStatus(id, statusTime)
 
 def getStatusAll(testTime=datetime.combine(datetime.today(), time(23,59,0))):
     #Get package status and truck mileage at time
-    for idx, truck in enumerate(trucks):
-        getTruckStatus(idx + 1, testTime)
+    getAllTruckStatus(testTime)
     
     
-    #print pkg data
-    for id, pkg in hashmap.data:
-        #If earlier than delayedTime
-        getPkgStatus(id, testTime)
+    getAllPkgStatus(testTime)
+
 
 
 
@@ -161,12 +167,12 @@ def promptGetStatus():
 
         #prompt for next input
         if selection == "t":
-            print(f"Enter a valid truck id")
+            print(f"Enter a valid truck id, or 'a' for all trucks")
             print(*range(1, len(trucks)+1))
             print("q to quit")
         
         if selection == "p":
-            print("Enter a valid package id")
+            print("Enter a valid package id or 'a' for all packages")
             print(*range(hashmap.length))
             print("q to quit")
 
@@ -194,12 +200,16 @@ def promptGetStatus():
 
         #return request
         if selection == "p":
+            if normalize(chosenID) == 'a':
+                getAllPkgStatus(formattedTime)
             if (chosenID > hashmap.length):
                 print("Invalid package ID given")
                 continue
             getPkgStatus(chosenID, formattedTime)
             continue
         if selection == "t":
+            if normalize(chosenID) == 'a':
+                getAllTruckStatus(formattedTime)
             if chosenID > len(trucks):
                 print("Invalid truck id")
                 continue
@@ -288,9 +298,13 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
 def beginDay():
     #Main Function
 
+    #All avail pkgs loaded to all avail trucks
     loadTrucks(trucks, NUM_TRUCKS, hashmap, distanceMatrix)
+
+    #Deliver packages
     for truck in trucks:
         truck.beginRoute(distanceMatrix, hashmap, locationTuple)
+
 
     #all trucks loaded once, now reload based off first return
     while LOADED_PACKAGES[0] < TOTAL_PACKAGES:

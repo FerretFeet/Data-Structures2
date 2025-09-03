@@ -28,5 +28,5 @@ class DelPackage:
     def setStatus(self, value):
         if self.status == value:
             raise Exception(("DelPackage value is already set"))
-        print(f"Changing status of package {self.id} from {self.status.name} to {value.name}")
+        # print(f"Changing status of package {self.id} from {self.status.name} to {value.name}")
         self.status = value
