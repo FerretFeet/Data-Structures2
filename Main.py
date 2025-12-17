@@ -16,7 +16,7 @@ LOADED_PACKAGES = [0]
 
 ##Package restrictions
 REQUIRE_TRUCK_2 = [3, 18, 36, 38]
-GROUPED_PACKAGES = [14, 15, 16, 19, 20]
+GROUPED_PACKAGES = [13, 14, 15, 16, 19, 20]
 DELAYED_PACKAGES = [
     [6, datetime.combine(datetime.today(), time(9, 5))],
     [9, datetime.combine(datetime.today(), time(10, 20))],
@@ -131,12 +131,12 @@ def getPkgStatus(pkgID, statusTime=datetime.combine(datetime.today(), time(23,59
 
     #if earlier than deliver time
     if statusTime < pkg.timeDelivered:
-        print(f"Package {pkg.id} \t Address: {pkg.address} \t  Status: {DeliveryStatus.EN_ROUTE.name} on Truck {pkg.truckAssigned} since {pkg.timeLoaded}")
+        print(f"Package {pkg.id} \t Address: {pkg.address} \t  Status: {DeliveryStatus.EN_ROUTE.name} on Truck {pkg.truckAssigned} since {pkg.timeLoaded} with deadline {pkg.deadline}")
         return
 
     #if after deliver time
     if statusTime >= pkg.timeDelivered:
-        print(f"Package {pkg.id} \t Address: {pkg.address} \t  Status: {DeliveryStatus.DELIVERED.name} by Truck {pkg.truckAssigned} at {pkg.timeDelivered} with a delivery deadline of {pkg.deadline}")
+        print(f"Package {pkg.id} \t Address: {pkg.address} \t  Status: {DeliveryStatus.DELIVERED.name} by Truck {pkg.truckAssigned} at {pkg.timeDelivered} with a deadline of {pkg.deadline}")
         return
 
     else:
@@ -240,16 +240,20 @@ def loadTrucks(trucks, numTrucks, hashmap, distanceMatrix):
             continue
 
 
-        #Hardcoded Restrictions:
+        #Hardcoded Restrictions first:
 
-        if pkg.id in REQUIRE_TRUCK_2:
+        if int(pkg.id) in REQUIRE_TRUCK_2:
+            print("TRUCK2 PKGS")
             assignToTruck(trucks[1], pkg.id)
             pkg.setStatus(DeliveryStatus.EN_ROUTE)
+            hashmap.lookup(pkg.id)[1].timeLoaded = trucks[1].clock
             continue
         
-        if pkg.id in GROUPED_PACKAGES:
+        if int(pkg.id) in GROUPED_PACKAGES:
+            print("GROUPED PKGS")
             assignToTruck(trucks[0], pkg.id)
             pkg.setStatus(DeliveryStatus.EN_ROUTE)
+            hashmap.lookup(pkg.id)[1].timeLoaded = trucks[0].clock
             continue
 
         #Take care of early deadlines
@@ -347,6 +351,5 @@ for testTime in testTimes:
     getStatusAll(testTime)
 
 
-promptGetStatus()
+# promptGetStatus()
 
-# hashmap.lookup(1)
